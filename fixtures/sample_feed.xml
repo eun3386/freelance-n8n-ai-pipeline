@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Sample Tech Feed</title>
+<item><title>중소기업, n8n으로 반복 업무 자동화 확산</title><link>https://example.com/a1</link><description>n8n 같은 노코드 도구로 보고서 작성과 알림 업무를 자동화하는 사례가 늘고 있다. 담당자 인건비 절감 효과가 크다.</description></item>
+<item><title>생성형 AI 기반 고객 응대 자동화 도입 가이드</title><link>https://example.com/a2</link><description>AI 챗봇과 CRM을 연동해 문의 응답 시간을 단축한 사례를 정리했다.</description></item>
+<item><title>프로야구 포스트시즌 일정 발표</title><link>https://example.com/a3</link><description>키워드와 무관한 스포츠 기사.</description></item>
+<item><title>AI 요약 기능으로 뉴스레터 제작 시간 70% 단축</title><link>https://example.com/a4</link><description>AI 요약과 자동 발행을 결합한 뉴스레터 운영 방식.</description></item>
+</channel></rss>

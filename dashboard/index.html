@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>자동 발행 운영 대시보드</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c1f24; --mute:#6b7480; --line:#e3e6ea; --blue:#2563eb; --red:#dc2626; --amber:#d97706; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111418; --card:#1a1e24; --ink:#e8ebef; --mute:#8d97a3; --line:#2a2f37; } }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--ink); font:14px -apple-system,'Noto Sans KR',sans-serif; padding:24px 16px; }
+  main { max-width:960px; margin:0 auto }
+  h1 { font-size:20px; margin:0 0 4px } .sub { color:var(--mute); margin:0 0 18px }
+  .badge { display:inline-block; background:#fef3c7; color:#92400e; border-radius:6px; padding:2px 8px; font-size:12px; margin-left:6px }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px }
+  .card small { color:var(--mute) } .card b { display:block; font-size:26px; margin-top:4px; font-variant-numeric:tabular-nums }
+  svg { width:100%; height:auto; display:block } table { width:100%; border-collapse:collapse }
+  td,th { text-align:left; padding:7px 4px; border-bottom:1px solid var(--line); font-size:13px } th { color:var(--mute); font-weight:500 }
+  .ok { color:#16a34a } .bad { color:var(--red) }
+</style>
+</head>
+<body>
+<main>
+  <h1>AI 콘텐츠 자동 발행 대시보드 <span class="badge">샘플 데이터</span></h1>
+  <p class="sub">n8n 워크플로우의 실행 로그(runs.jsonl)를 시각화합니다. 아래 수치는 데모용으로 생성한 값이며 실제 운영 실적이 아닙니다.</p>
+  <div class="grid" id="kpis"></div>
+  <div class="card"><small>일별 발행 건수 (최근 30일)</small><svg id="chart" viewBox="0 0 600 180"></svg></div>
+  <div class="card" style="margin-top:12px"><small>최근 실행</small><table><thead><tr><th>시각</th><th>수집</th><th>발행</th><th>재시도</th><th>실패</th></tr></thead><tbody id="rows"></tbody></table></div>
+</main>
+<script>
+// 재현 가능한 샘플 데이터 (시드 고정). 실제 사용 시 fetch('../pipeline/out/runs.jsonl')로 교체.
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const runs = Array.from({ length: 30 }, (_, i) => {
+  const d = new Date(2026, 9, 26 - (29 - i)); const matched = 6 + Math.floor(rnd() * 5);
+  const failed = rnd() < 0.15 ? 1 : 0; const retries = Math.floor(rnd() * 3);
+  return { date: d, fetched: matched + 8 + Math.floor(rnd() * 10), published: matched - failed, retries, failed };
+});
+const sum = k => runs.reduce((s, r) => s + r[k], 0);
+const rate = ((sum('published') / (sum('published') + sum('failed'))) * 100).toFixed(1);
+document.getElementById('kpis').innerHTML = [
+  ['30일 발행', sum('published') + '건'], ['성공률', rate + '%'], ['자동 재시도', sum('retries') + '회'], ['실패(격리)', sum('failed') + '건'],
+].map(([k, v]) => `<div class="card"><small>${k}</small><b>${v}</b></div>`).join('');
+const max = Math.max(...runs.map(r => r.published)), W = 600, H = 150, bw = W / runs.length;
+document.getElementById('chart').innerHTML = runs.map((r, i) =>
+  `<rect x="${i * bw + 2}" y="${H - (r.published / max) * H + 10}" width="${bw - 4}" height="${(r.published / max) * H}" rx="3" fill="${r.failed ? 'var(--amber)' : 'var(--blue)'}"><title>${r.date.toLocaleDateString('ko')} 발행 ${r.published}</title></rect>`).join('')
+  + `<text x="0" y="176" font-size="10" fill="currentColor" opacity=".5">${runs[0].date.toLocaleDateString('ko')}</text><text x="${W}" y="176" font-size="10" text-anchor="end" fill="currentColor" opacity=".5">${runs.at(-1).date.toLocaleDateString('ko')}</text>`;
+document.getElementById('rows').innerHTML = runs.slice(-8).reverse().map(r =>
+  `<tr><td>${r.date.toLocaleDateString('ko')} 09:00</td><td>${r.fetched}</td><td class="ok">${r.published}</td><td>${r.retries}</td><td class="${r.failed ? 'bad' : ''}">${r.failed}</td></tr>`).join('');
+</script>
+</body>
+</html>
