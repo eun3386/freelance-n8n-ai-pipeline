@@ -28,5 +28,3 @@ python3 pipeline/run.py --demo                 # 키 없이 동작
 ANTHROPIC_API_KEY=... python3 pipeline/run.py --feed <RSS_URL>
 open dashboard/index.html
 ```
-
-> 포트폴리오 등록 시 실제 운영 수치(발행 건수, 성공률)를 쓰려면 본인의 실행 로그로 대시보드를 교체하세요. 샘플 수치를 실적처럼 표기하지 마세요.
