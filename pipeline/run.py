@@ -4,7 +4,7 @@
 RSS 수집 -> 키워드 필터/중복 제거 -> LLM 요약(재시도) -> 마크다운 발행 -> 실행 로그
 
   python3 pipeline/run.py --demo                # 샘플 피드 + 키 없이 동작(추출 요약)
-  ANTHROPIC_API_KEY=... python3 pipeline/run.py --feed <RSS_URL>
+  GEMINI_API_KEY=... python3 pipeline/run.py --feed <RSS_URL>
 """
 import argparse, hashlib, json, os, sqlite3, time, urllib.request, xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "pipeline" / "out"
-MODEL = "claude-haiku-5-5"
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 
 def fetch_feed(src: str) -> list[dict]:
@@ -47,19 +47,18 @@ def retry(fn, tries=3, wait=1.0):
 
 
 def llm_summarize(item) -> str:
-    key = os.environ.get("ANTHROPIC_API_KEY")
+    key = os.environ.get("GEMINI_API_KEY")
     if not key:  # 키가 없으면 추출 요약으로 대체(데모용)
         return f"{item['title']}\n\n{item['content']}\n\n원문: {item['link']}"
-    body = json.dumps({
-        "model": MODEL, "max_tokens": 700,
-        "messages": [{"role": "user", "content":
-            f"다음 기사를 한국어 블로그 글로 작성해줘. 첫 줄은 제목, 3문단 요약 + 핵심 포인트 3개.\n\n"
-            f"제목: {item['title']}\n본문: {item['content']}\n링크: {item['link']}"}],
-    }).encode()
-    req = urllib.request.Request("https://api.anthropic.com/v1/messages", body, {
-        "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"})
+    prompt = (f"다음 기사를 한국어 블로그 글로 작성해줘. 첫 줄은 제목, 3문단 요약 + 핵심 포인트 3개.\n\n"
+              f"제목: {item['title']}\n본문: {item['content']}\n링크: {item['link']}")
+    body = json.dumps({"contents": [{"parts": [{"text": prompt}]}],
+                       "generationConfig": {"maxOutputTokens": 2000}}).encode()
+    base = os.environ.get("LLM_BASE", "https://generativelanguage.googleapis.com")
+    req = urllib.request.Request(f"{base}/v1beta/models/{MODEL}:generateContent", body, {
+        "x-goog-api-key": key, "content-type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as r:
-        return json.load(r)["content"][0]["text"]
+        return json.load(r)["candidates"][0]["content"]["parts"][0]["text"]
 
 
 def main():

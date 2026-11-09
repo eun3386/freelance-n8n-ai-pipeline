@@ -47,7 +47,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "// 키워드가 포함된 기사만 남기고, 이미 발행한 링크는 제외(Workflow Static Data)\nconst keywords = ($env.KEYWORDS || 'AI,자동화,n8n').split(',').map(s => s.trim().toLowerCase());\nconst store = $getWorkflowStaticData('global');\nstore.seen = store.seen || [];\nconst out = [];\nfor (const item of $input.all()) {\n  const { title = '', link = '', contentSnippet = '', content = '' } = item.json;\n  const text = (title + ' ' + contentSnippet).toLowerCase();\n  if (!keywords.some(k => text.includes(k))) continue;\n  if (store.seen.includes(link)) continue;\n  store.seen.push(link);\n  out.push({ json: { title, link, content: contentSnippet || content } });\n}\nstore.seen = store.seen.slice(-500);\nreturn out.slice(0, Number($env.MAX_POSTS || 10));"
+        "jsCode": "// 키워드가 포함된 기사만 남기고, 이미 발행한 링크는 제외(Workflow Static Data). 이력 기록은 발행 성공 후 '발행 이력 기록' 노드에서 한다\nconst keywords = ($env.KEYWORDS || 'AI,자동화,n8n').split(',').map(s => s.trim().toLowerCase());\nconst store = $getWorkflowStaticData('global');\nstore.seen = store.seen || [];\nconst out = [];\nfor (const item of $input.all()) {\n  const { title = '', link = '', contentSnippet = '', content = '' } = item.json;\n  const text = (title + ' ' + contentSnippet).toLowerCase();\n  if (!keywords.some(k => text.includes(k))) continue;\n  if (store.seen.includes(link)) continue;\n  out.push({ json: { title, link, content: contentSnippet || content } });\n}\nreturn out.slice(0, Number($env.MAX_POSTS || 10));"
       }
     },
     {
@@ -61,17 +61,13 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "https://api.anthropic.com/v1/messages",
+        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + ($env.GEMINI_MODEL || 'gemini-2.5-flash') + ':generateContent' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "x-api-key",
-              "value": "={{ $env.ANTHROPIC_API_KEY }}"
-            },
-            {
-              "name": "anthropic-version",
-              "value": "2023-06-01"
+              "name": "x-goog-api-key",
+              "value": "={{ $env.GEMINI_API_KEY }}"
             },
             {
               "name": "content-type",
@@ -81,7 +77,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({model:'claude-haiku-5-5',max_tokens:700,messages:[{role:'user',content:'다음 기사를 한국어 블로그 글로 작성해줘. 첫 줄은 제목, 이후 3문단 요약과 핵심 포인트 3개. 원문 링크는 마지막에 표기.\\n\\n제목: '+$json.title+'\\n본문: '+$json.content+'\\n링크: '+$json.link}]}) }}",
+        "jsonBody": "={{ JSON.stringify({contents:[{parts:[{text:'다음 기사를 한국어 블로그 글로 작성해줘. 첫 줄은 제목, 이후 3문단 요약과 핵심 포인트 3개. 원문 링크는 마지막에 표기.\\n\\n제목: '+$json.title+'\\n본문: '+$json.content+'\\n링크: '+$json.link}]}],generationConfig:{maxOutputTokens:2000 } }) }}",
         "options": {
           "timeout": 60000
         }
@@ -101,7 +97,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "const src = $('키워드 필터 + 중복 제거').all();\nreturn $input.all().map((it, i) => {\n  const text = it.json.content?.[0]?.text ?? '';\n  const [title, ...rest] = text.split('\\n').filter(Boolean);\n  return { json: { title: title.replace(/^#+\\s*/, ''), html: rest.join('<br>'), link: src[i]?.json.link } };\n});"
+        "jsCode": "// LLM 실패 건이 빠진 채 들어오므로 번호가 아니라 itemMatching 으로 원본 기사를 찾는다\nreturn $input.all().map((it, i) => {\n  const text = it.json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';\n  const [title, ...rest] = text.split('\\n').filter(Boolean);\n  const link = $('키워드 필터 + 중복 제거').itemMatching(i).json.link;\n  return { json: { title: title.replace(/^#+\\s*/, ''), html: rest.join('<br>'), link } };\n});"
       }
     },
     {
@@ -136,7 +132,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
       "position": [
-        1320,
+        1540,
         -100
       ],
       "parameters": {
@@ -215,6 +211,19 @@
           "name": "Slack"
         }
       }
+    },
+    {
+      "id": "record-seen",
+      "name": "발행 이력 기록",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "// 발행에 성공한 기사만 이력에 남긴다. 실패한 기사는 다음 실행에서 다시 시도된다.\nconst store = $getWorkflowStaticData('global');\nstore.seen = store.seen || [];\n$input.all().forEach((it, i) => {\n  const link = $('글 포맷 정리').itemMatching(i).json.link;\n  if (link && !store.seen.includes(link)) store.seen.push(link);\n});\nstore.seen = store.seen.slice(-500);\nreturn $input.all();"
+      }
     }
   ],
   "connections": {
@@ -284,7 +293,7 @@
       "main": [
         [
           {
-            "node": "슬랙 완료 알림",
+            "node": "발행 이력 기록",
             "type": "main",
             "index": 0
           }
@@ -296,6 +305,17 @@
         [
           {
             "node": "에러 알림",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "발행 이력 기록": {
+      "main": [
+        [
+          {
+            "node": "슬랙 완료 알림",
             "type": "main",
             "index": 0
           }

@@ -1,0 +1,49 @@
+[
+ {
+  "at": "2026-10-29 17:49",
+  "kind": "목업",
+  "status": "success",
+  "fetched": 4,
+  "matched": 3,
+  "published": 2,
+  "isolated": 1,
+  "titles": [
+   "[목업] 중소기업, n8n으로 반복 업무 자동화 확산",
+   "[목업] AI 요약 기능으로 뉴스레터 제작 시간 70% 단축"
+  ]
+ },
+ {
+  "at": "2026-10-29 17:49",
+  "kind": "목업",
+  "status": "success",
+  "fetched": 4,
+  "matched": 1,
+  "published": 0,
+  "isolated": 1,
+  "titles": []
+ },
+ {
+  "at": "2026-10-29 17:50",
+  "kind": "Gemini",
+  "status": "success",
+  "fetched": 4,
+  "matched": 3,
+  "published": 3,
+  "isolated": 0,
+  "titles": [
+   "중소기업, n8n으로 반복 업무 자동화 확산",
+   "생성형 AI 기반 고객 응대 자동화 도입 가이드",
+   "AI 요약 기능으로 뉴스레터 제작 시간 70% 단축: 콘텐츠 마케팅의 새로운 지평!"
+  ]
+ },
+ {
+  "at": "2026-10-29 17:50",
+  "kind": "Gemini",
+  "status": "success",
+  "fetched": 4,
+  "matched": 0,
+  "published": 0,
+  "isolated": 0,
+  "titles": []
+ }
+]
